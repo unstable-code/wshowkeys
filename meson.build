@@ -38,6 +38,7 @@ add_project_arguments([
 ], language: 'c')
 
 cairo          = dependency('cairo')
+fontconfig     = dependency('fontconfig')
 libinput       = dependency('libinput')
 pango          = dependency('pango')
 pangocairo     = dependency('pangocairo')
@@ -62,6 +63,7 @@ executable(
 		cairo,
 		client_protos,
 		libinput,
+		fontconfig,
 		pango,
 		pangocairo,
 		rt,

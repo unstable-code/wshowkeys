@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
+#include <fontconfig/fontconfig.h>
 #include "devmgr.h"
 #include "shm.h"
 #include "pango.h"
@@ -554,6 +555,12 @@ static uint32_t parse_color(const char *color) {
 }
 
 int main(int argc, char *argv[]) {
+	// Fontconfig initializations
+	if(!FcInit()) {
+		fprintf(stderr, "Failed to initialize fontconfig\n");
+		return 1;
+	}
+
 	/* NOTICE: This code runs as root */
 	struct wsk_state state = { 0 };
 	if (devmgr_start(&state.devmgr, &state.devmgr_pid, INPUTDEVPATH) > 0) {
@@ -689,6 +696,8 @@ int main(int argc, char *argv[]) {
 	zwlr_layer_surface_v1_set_exclusive_zone(state.layer_surface, -1);
 	wl_surface_commit(state.surface);
 
+	wl_display_roundtrip(state.display);
+
 	struct pollfd pollfds[] = {
 		{ .fd = libinput_get_fd(state.libinput), .events = POLLIN, },
 		{ .fd = wl_display_get_fd(state.display), .events = POLLIN, },
@@ -749,6 +758,7 @@ int main(int argc, char *argv[]) {
 	}
 
 exit:
+	FcInit();
 	wl_display_disconnect(state.display);
 	libinput_unref(state.libinput);
 	devmgr_finish(state.devmgr, state.devmgr_pid);
