@@ -520,11 +520,13 @@ static void handle_libinput_event(struct wsk_state *state,
     	}
 
     	// UTF-8 문자 확인
-    	char current_utf8[128] = {0};
+    	unsigned char current_utf8[128] = {0};
     	bool is_special = false;
     	if (xkb_state_key_get_utf8(state->xkb_state, keycode,
-    	        current_utf8, sizeof(current_utf8)) <= 0 ||
-    	        current_utf8[0] <= ' ') {
+    	        (char*)current_utf8, sizeof(current_utf8)) <= 0 ||
+    	        current_utf8[0] <= ' ' ||
+			    (current_utf8[0] >= 0x7F && current_utf8[0] <= 0x9F)
+			) {
     	    current_utf8[0] = '\0';
     	    is_special = true;
     	}
@@ -547,7 +549,7 @@ static void handle_libinput_event(struct wsk_state *state,
 
     	    xkb_keysym_get_name(keypress->sym, keypress->name,
     	            sizeof(keypress->name));
-    	    strcpy(keypress->utf8, current_utf8);
+    	    strcpy(keypress->utf8, (char*)current_utf8);
 
     	    // 링크드 리스트 끝에 추가
     	    struct wsk_keypress **link = &state->keys;
