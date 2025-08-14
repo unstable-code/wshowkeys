@@ -112,60 +112,30 @@ static void render_to_cairo(cairo_t *cairo, struct wsk_state *state,
 			special = true;
 			cairo_set_source_u32(cairo, state->specialfg);
 
-			if (strcmp(key->name, "space") == 0) {
-				name = "⎵";
-			} else if (strcmp(key->name, "Control_L") == 0) {
-				name = "^";
-			} else if (strcmp(key->name, "Control_R") == 0) {
-				name = "^";
-			} else if (strcmp(key->name, "Super_L") == 0) {
-				name = "⌘";
-			} else if (strcmp(key->name, "Alt_L") == 0) {
-				name = "⌥";
-			} else if (strcmp(key->name, "Alt_R") == 0) {
-				name = "⌥";
-			} else if (strcmp(key->name, "Shift_L") == 0) {
-				name = "⇧";
-			} else if (strcmp(key->name, "Shift_R") == 0) {
-				name = "⇧";
-			} else if (strcmp(key->name, "Return") == 0) {
-				name = "↩";
-			} else if (strcmp(key->name, "BackSpace") == 0) {
-				name = "⌫";
-			} else if (strcmp(key->name, "Escape") == 0) {
-				name = "⎋";
-			} else if (strcmp(key->name, "Up") == 0) {
-				name = "↑";
-			} else if (strcmp(key->name, "Down") == 0) {
-				name = "↓";
-			} else if (strcmp(key->name, "Left") == 0) {
-				name = "←";
-			} else if (strcmp(key->name, "Right") == 0) {
-				name = "→";
-			} else if (strcmp(key->name, "Next") == 0) {
-				name = "↡";
-			} else if (strcmp(key->name, "Prior") == 0) {
-				name = "↟";
-			} else if (strcmp(key->name, "Return") == 0) {
-				name = "⏎";
-			} else if (strcmp(key->name, "Caps_Lock") == 0) {
-				name = "⇪";
-			} else if (strcmp(key->name, "Tab") == 0) {
-				name = "↹";
-			} else if (strcmp(key->name, "Insert") == 0) {
-				name = "↹";
-			} else if (strcmp(key->name, "Delete") == 0) {
-			    name = "⌦";
-			} else if (strcmp(key->name, "Home") == 0) {
-			    name = "⇱";
-			} else if (strcmp(key->name, "End") == 0) {
-			    name = "⇲";
-			} else if (strcmp(key->name, "Print") == 0) {
-			    name = "⎙";
-			} else if (strcmp(key->name, "Menu") == 0) {
-			    name = "≡";
-			} else {
-				name=key->name;
+			switch(key->sym) {
+				case XKB_KEY_space:     name = "⎵"; break;
+				case XKB_KEY_Control_L: case XKB_KEY_Control_R: name = "^"; break;
+				case XKB_KEY_Super_L:   case XKB_KEY_Super_R:   name = "⌘"; break;
+				case XKB_KEY_Alt_L:     case XKB_KEY_Alt_R:     name = "⌥"; break;
+				case XKB_KEY_Shift_L:   case XKB_KEY_Shift_R:   name = "⇧"; break;
+				case XKB_KEY_Return:    name = "⏎"; break;
+				case XKB_KEY_BackSpace: name = "⌫"; break;
+				case XKB_KEY_Delete:    name = "⌦"; break;
+				case XKB_KEY_Escape:    name = "⎋"; break;
+				case XKB_KEY_Up:        name = "↑"; break;
+				case XKB_KEY_Down:      name = "↓"; break;
+				case XKB_KEY_Left:      name = "←"; break;
+				case XKB_KEY_Right:     name = "→"; break;
+				case XKB_KEY_Next:      name = "↡"; break;
+				case XKB_KEY_Prior:     name = "↟"; break;
+				case XKB_KEY_Print:     name = "⎙"; break;
+				case XKB_KEY_Menu:      name = "≡"; break;
+				case XKB_KEY_Tab:       name = "⇥"; break;
+				case XKB_KEY_BackTab:   name = "⇤"; break;
+				case XKB_KEY_Caps_Lock: name = "⇪"; break;
+				case XKB_KEY_Home:      name = "⇱"; break;
+				case XKB_KEY_End:       name = "⇲"; break;
+				default:                name = key->name;
 			}
 		} else {
 			cairo_set_source_u32(cairo, state->foreground);
@@ -740,7 +710,24 @@ int main(int argc, char *argv[]) {
 	zwlr_layer_surface_v1_set_exclusive_zone(state.layer_surface, -1);
 	wl_surface_commit(state.surface);
 
-	wl_display_roundtrip(state.display);
+	// Configure 이벤트 대기
+    int retry_count = 0;
+    while ((state.width == 0 || state.height == 0) && retry_count < 10) {
+		wl_display_roundtrip(state.display);
+		retry_count++;
+	}
+
+	retry_count = 0;
+    while ((state.width == 0 || state.height == 0) && retry_count < 10) {
+        wl_display_dispatch(state.display);
+        retry_count++;
+    }
+    
+    if (state.width == 0 || state.height == 0) {
+        fprintf(stderr, "Layer surface configuration failed\n");
+        ret = 1;
+        goto exit;
+    }
 
 	struct pollfd pollfds[] = {
 		{ .fd = libinput_get_fd(state.libinput), .events = POLLIN, },
