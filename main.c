@@ -504,6 +504,11 @@ static void handle_libinput_event(struct wsk_state *state,
 		/* Who cares */
 		break;
 	case LIBINPUT_KEY_STATE_PRESSED:
+		if(keysym == XKB_KEY_Pause || keysym == XKB_KEY_Break) {
+			state->run = false;
+			return;
+		}
+
     	// 현재 키가 마지막 키와 같은지 확인
     	struct wsk_keypress *last_key = NULL;
     	if (state->keys) {
