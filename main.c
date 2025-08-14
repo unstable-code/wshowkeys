@@ -25,6 +25,7 @@ struct wsk_keypress {
 	xkb_keysym_t sym;
 	char name[128];
 	char utf8[128];
+	int count;
 	struct wsk_keypress *next;
 };
 
@@ -174,11 +175,16 @@ static void render_to_cairo(cairo_t *cairo, struct wsk_state *state,
 
 		int w, h;
 		if (special) {
-			get_text_size(cairo, state->font, &w, &h, NULL, scale, "%s ", name);
-			pango_printf(cairo, state->font, scale,  "%s ", name);
+		    if (key->count > 1) {
+		        get_text_size(cairo, state->font, &w, &h, NULL, scale, "%s x%d ", name, key->count);
+		        pango_printf(cairo, state->font, scale, "%s x%d ", name, key->count);
+		    } else {
+		        get_text_size(cairo, state->font, &w, &h, NULL, scale, "%s ", name);
+		        pango_printf(cairo, state->font, scale, "%s ", name);
+		    }
 		} else {
 			get_text_size(cairo, state->font, &w, &h, NULL, scale, "%s", name);
-			pango_printf(cairo, state->font, scale,  "%s", name);
+			pango_printf(cairo, state->font, scale, "%s", name);
 		}
 
 		*width = *width + w;
@@ -498,23 +504,54 @@ static void handle_libinput_event(struct wsk_state *state,
 		/* Who cares */
 		break;
 	case LIBINPUT_KEY_STATE_PRESSED:
-		keypress = calloc(1, sizeof(struct wsk_keypress));
-		assert(keypress);
-		keypress->sym = keysym;
-		xkb_keysym_get_name(keypress->sym, keypress->name,
-				sizeof(keypress->name));
-		if (xkb_state_key_get_utf8(state->xkb_state, keycode,
-				keypress->utf8, sizeof(keypress->utf8)) <= 0 ||
-				keypress->utf8[0] <= ' ') {
-			keypress->utf8[0] = '\0';
-		}
+    	// 현재 키가 마지막 키와 같은지 확인
+    	struct wsk_keypress *last_key = NULL;
+    	if (state->keys) {
+    	    struct wsk_keypress *current = state->keys;
+    	    while (current->next) {
+    	        current = current->next;
+    	    }
+    	    last_key = current;
+    	}
 
-		struct wsk_keypress **link = &state->keys;
-		while (*link) {
-			link = &(*link)->next;
-		}
-		*link = keypress;
-		break;
+    	// UTF-8 문자 확인
+    	char current_utf8[128] = {0};
+    	bool is_special = false;
+    	if (xkb_state_key_get_utf8(state->xkb_state, keycode,
+    	        current_utf8, sizeof(current_utf8)) <= 0 ||
+    	        current_utf8[0] <= ' ') {
+    	    current_utf8[0] = '\0';
+    	    is_special = true;
+    	}
+
+    	// 🔥 특수 키만 카운트, 일반 키는 항상 새로 추가
+    	bool should_count = false;
+    	if (is_special && last_key && last_key->sym == keysym && last_key->utf8[0] == '\0') {
+    	    should_count = true;  // 연속된 같은 특수 키만 카운트
+    	}
+
+    	if (should_count) {
+    	    // 🔥 특수 키 카운트 증가
+    	    last_key->count++;
+    	} else {
+    	    // 🔥 새로운 키 추가 (일반 키는 항상 여기로)
+    	    keypress = calloc(1, sizeof(struct wsk_keypress));
+    	    assert(keypress);
+    	    keypress->sym = keysym;
+    	    keypress->count = 1;
+
+    	    xkb_keysym_get_name(keypress->sym, keypress->name,
+    	            sizeof(keypress->name));
+    	    strcpy(keypress->utf8, current_utf8);
+
+    	    // 링크드 리스트 끝에 추가
+    	    struct wsk_keypress **link = &state->keys;
+    	    while (*link) {
+    	        link = &(*link)->next;
+    	    }
+    	    *link = keypress;
+    	}
+    	break;
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &state->last_key);
