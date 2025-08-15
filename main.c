@@ -608,8 +608,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	fprintf(stderr, "Compositor: %s\n", getenv("WAYLAND_DISPLAY") ?: "wayland-0");
-	fprintf(stderr, "Using compositor interfaces...\n");
+	fprintf(stdout, "Compositor: %s\n", getenv("WAYLAND_DISPLAY") ?: "wayland-0");
+	fprintf(stdout, "Using compositor interfaces...\n");
 
 
 	/* Begin normal user code: */
@@ -688,7 +688,7 @@ int main(int argc, char *argv[]) {
 		ret = 1;
 		goto exit;
 	}
-	fprintf(stderr, "XKB context created successfully\n");
+	fprintf(stdout, "XKB context created successfully\n");
 
 	state.display = wl_display_connect(NULL);
 	if (!state.display) {
