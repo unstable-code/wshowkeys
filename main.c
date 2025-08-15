@@ -281,6 +281,33 @@ static const struct wl_surface_listener wl_surface_listener = {
 static void keyboard_keymap(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t format, int32_t fd, uint32_t size) {
 	struct wsk_state *state = data;
+
+	// 🔥 크기 체크
+    if (size == 0) {
+        close(fd);
+        fprintf(stderr, "Compositor sent empty keymap, using default\n");
+
+        // 기본 keymap 생성
+        struct xkb_keymap *keymap = xkb_keymap_new_from_names(
+                state->xkb_context, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        if (!keymap) {
+            fprintf(stderr, "Failed to create default keymap\n");
+            return;
+        }
+
+        struct xkb_state *xkb_state = xkb_state_new(keymap);
+        if (!xkb_state) {
+            xkb_keymap_unref(keymap);
+            return;
+        }
+
+        xkb_keymap_unref(state->xkb_keymap);
+        xkb_state_unref(state->xkb_state);
+        state->xkb_keymap = keymap;
+        state->xkb_state = xkb_state;
+        return;
+    }
+
 	char *map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 	if (map_shm == MAP_FAILED) {
 		close(fd);
@@ -581,6 +608,10 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	fprintf(stderr, "Compositor: %s\n", getenv("WAYLAND_DISPLAY") ?: "wayland-0");
+	fprintf(stderr, "Using compositor interfaces...\n");
+
+
 	/* Begin normal user code: */
 	int ret = 0;
 
@@ -657,6 +688,7 @@ int main(int argc, char *argv[]) {
 		ret = 1;
 		goto exit;
 	}
+	fprintf(stderr, "XKB context created successfully\n");
 
 	state.display = wl_display_connect(NULL);
 	if (!state.display) {
@@ -695,12 +727,13 @@ int main(int argc, char *argv[]) {
 	
 	state.surface = wl_compositor_create_surface(state.compositor);
 	assert(state.surface);
-	wl_surface_add_listener(state.surface, &wl_surface_listener, &state);
 
 	state.layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			state.layer_shell, state.surface, NULL,
 			ZWLR_LAYER_SHELL_V1_LAYER_TOP, "showkeys");
 	assert(state.layer_surface);
+
+	wl_surface_add_listener(state.surface, &wl_surface_listener, &state);
 	zwlr_layer_surface_v1_add_listener(
 			state.layer_surface, &layer_surface_listener, &state);
 	zwlr_layer_surface_v1_set_size(state.layer_surface, 1, 1);
