@@ -32,7 +32,7 @@ struct msg {
 	char path[PATH_MAX];
 };
 
-static ssize_t recv_msg(int sock, int *fd_out, void *buf, size_t buf_len) {
+static ssize_t recv_msg(int sock, int *fd_out, void *buf, const size_t buf_len) {
 	char control[CMSG_SPACE(sizeof(*fd_out))] = {0};
 	struct iovec iovec = { .iov_base = buf, .iov_len = buf_len };
 	struct msghdr msghdr = {0};
@@ -64,7 +64,7 @@ static ssize_t recv_msg(int sock, int *fd_out, void *buf, size_t buf_len) {
 	return ret;
 }
 
-static void send_msg(int sock, int fd, void *buf, size_t buf_len) {
+static void send_msg(int sock, int fd, void *buf, const size_t buf_len) {
 	char control[CMSG_SPACE(sizeof(fd))] = {0};
 	struct iovec iovec = { .iov_base = buf, .iov_len = buf_len };
 	struct msghdr msghdr = {0};
@@ -106,7 +106,7 @@ static void devmgr_run(int sockfd, const char *devpath) {
 				/* Hackerman detected */
 				exit(1);
 			}
-			int fd = open(msg.path, O_RDONLY|O_CLOEXEC|O_NOCTTY|O_NONBLOCK);
+			const int fd = open(msg.path, O_RDONLY|O_CLOEXEC|O_NOCTTY|O_NONBLOCK);
 			int ret = errno;
 			send_msg(sockfd, ret ? -1 : fd, &ret, sizeof(ret));
 			if (fd >= 0) {
@@ -135,7 +135,7 @@ int devmgr_start(int *fd, pid_t *pid, const char *devpath) {
 		return -1;
 	}
 
-	pid_t child = fork();
+	const pid_t child = fork();
 	if (child < 0) {
 		fprintf(stderr, "devmgr: fork: %s", strerror(errno));
 		close(sock[0]);

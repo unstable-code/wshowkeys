@@ -41,7 +41,7 @@ int create_shm_file(void) {
 }
 
 int allocate_shm_file(size_t size) {
-	int fd = create_shm_file();
+	const int fd = create_shm_file();
 	if (fd < 0) {
 		return -1;
 	}
@@ -70,10 +70,10 @@ static const struct wl_buffer_listener buffer_listener = {
 static struct pool_buffer *create_buffer(struct wl_shm *shm,
 		struct pool_buffer *buf, int32_t width, int32_t height,
 		uint32_t format) {
-	uint32_t stride = width * 4;
-	size_t size = stride * height;
+	const uint32_t stride = width * 4;
+	const size_t size = stride * height;
 
-	int fd = allocate_shm_file(size);
+	const int fd = allocate_shm_file(size);
 	assert(fd != -1);
 	void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
@@ -115,7 +115,7 @@ void destroy_buffer(struct pool_buffer *buffer) {
 }
 
 struct pool_buffer *get_next_buffer(struct wl_shm *shm,
-		struct pool_buffer pool[static 2], uint32_t width, uint32_t height) {
+		struct pool_buffer pool[static 2], const uint32_t width, const uint32_t height) {
 	struct pool_buffer *buffer = NULL;
 
 	for (size_t i = 0; i < 2; ++i) {

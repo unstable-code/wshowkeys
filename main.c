@@ -1,79 +1,6 @@
-#include <assert.h>
-#include <errno.h>
-#include <cairo/cairo.h>
-#include <getopt.h>
-#include <libinput.h>
-#include <libudev.h>
-#include <poll.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <unistd.h>
-#include <wayland-client.h>
-#include <xkbcommon/xkbcommon.h>
-#include <fontconfig/fontconfig.h>
-#include "devmgr.h"
-#include "shm.h"
-#include "pango.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
-#include "xdg-output-unstable-v1-client-protocol.h"
+#include "main.h"
 
-struct wsk_keypress {
-	xkb_keysym_t sym;
-	char name[128];
-	char utf8[128];
-	int count;
-	struct wsk_keypress *next;
-};
-
-struct wsk_output {
-	struct wl_output *output;
-	int scale, width, heigh;
-	enum wl_output_subpixel subpixel;
-	struct wsk_output *next;
-};
-
-struct wsk_state {
-	int devmgr;
-	pid_t devmgr_pid;
-	struct udev *udev;
-	struct libinput *libinput;
-
-	uint32_t foreground, background, specialfg;
-	const char *font;
-	int timeout;
-
-	struct wl_display *display;
-	struct wl_registry *registry;
-	struct wl_compositor *compositor;
-	struct wl_shm *shm;
-	struct wl_seat *seat;
-	struct wl_keyboard *keyboard;
-	struct zxdg_output_manager_v1 *output_mgr;
-	struct zwlr_layer_shell_v1 *layer_shell;
-
-	struct wl_surface *surface;
-	struct zwlr_layer_surface_v1 *layer_surface;
-	uint32_t width, height;
-	bool frame_scheduled, dirty;
-	struct pool_buffer buffers[2];
-	struct pool_buffer *current_buffer;
-	struct wsk_output *output, *outputs;
-
-	struct xkb_state *xkb_state;
-	struct xkb_context *xkb_context;
-	struct xkb_keymap *xkb_keymap;
-
-	struct wsk_keypress *keys;
-	struct timespec last_key;
-
-	bool run;
-};
-
-static void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
+static void cairo_set_source_u32(cairo_t *cairo, const uint32_t color) {
 	cairo_set_source_rgba(cairo,
 			(color >> (3*8) & 0xFF) / 255.0,
 			(color >> (2*8) & 0xFF) / 255.0,
@@ -85,14 +12,14 @@ static void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 static void trim_keys_by_width(struct wsk_state *state) {
 	if (!state->keys) return;
 
-    uint32_t max_width = 1800;  // 안전 마진 포함
+    const uint32_t max_width = 1800;  // 안전 마진 포함
 
     // 🔥 간단: 현재 키들의 총 너비 계산
     cairo_surface_t *temp_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t *temp_cairo = cairo_create(temp_surface);
 
     uint32_t total_width = 0;
-    struct wsk_keypress *key = state->keys;
+    const struct wsk_keypress *key = state->keys;
 
     // 전체 너비 계산
     while (key) {
@@ -159,7 +86,7 @@ static void render_to_cairo(cairo_t *cairo, struct wsk_state *state,
         fprintf(stdout, "Using default width: %d\n", max_width);
 	}
 
-	struct wsk_keypress *key = state->keys;
+	const struct wsk_keypress *key = state->keys;
 	while (key) {
 		bool special = false;
 		const char *name = key->utf8;
@@ -239,7 +166,7 @@ static void render_frame(struct wsk_state *state) {
 	cairo_paint(cairo);
 	cairo_restore(cairo);
 
-	int scale = state->output ? state->output->scale : 1;
+	const int scale = state->output ? state->output->scale : 1;
 	uint32_t width = 0, height = 0;
 	render_to_cairo(cairo, state, scale, &width, &height);
 	if (height / scale != state->height
@@ -543,7 +470,7 @@ static void handle_libinput_event(struct wsk_state *state,
 		return;
 	}
 
-	enum libinput_event_type event_type = libinput_event_get_type(event);
+	const enum libinput_event_type event_type = libinput_event_get_type(event);
 	if (event_type != LIBINPUT_EVENT_KEYBOARD_KEY) {
 		return;
 	}
@@ -551,8 +478,8 @@ static void handle_libinput_event(struct wsk_state *state,
 	struct libinput_event_keyboard *kbevent =
 		libinput_event_get_keyboard_event(event);
 
-	uint32_t keycode = libinput_event_keyboard_get_key(kbevent) + 8;
-	enum libinput_key_state key_state =
+	const uint32_t keycode = libinput_event_keyboard_get_key(kbevent) + 8;
+	const enum libinput_key_state key_state =
 		libinput_event_keyboard_get_key_state(kbevent);
 	xkb_state_update_key(state->xkb_state, keycode,
 			key_state == LIBINPUT_KEY_STATE_RELEASED ?
@@ -649,7 +576,7 @@ static uint32_t parse_color(const char *color) {
 		++color;
 	}
 
-	int len = strlen(color);
+	const int len = strlen(color);
 	if (len != 6 && len != 8) {
 		fprintf(stderr, "Invalid color %s, defaulting to color "
 				"0xFFFFFFFF\n", color);
@@ -769,7 +696,7 @@ int main(int argc, char *argv[]) {
 	wl_registry_add_listener(state.registry, &registry_listener, &state);
 	wl_display_roundtrip(state.display);
 
-	struct {
+	const struct {
 		const char *name;
 		void *ptr;
 	} need_globals[] = {

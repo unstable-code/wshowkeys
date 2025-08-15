@@ -28,7 +28,7 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 	va_list args;
 	va_start(args, fmt);
 	// Add one since vsnprintf excludes null terminator.
-	int length = vsnprintf(NULL, 0, fmt, args) + 1;
+	const int length = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 
 	char *buf = malloc(length);
@@ -54,7 +54,7 @@ void pango_printf(cairo_t *cairo, const char *font, double scale,
 	va_list args;
 	va_start(args, fmt);
 	// Add one since vsnprintf excludes null terminator.
-	int length = vsnprintf(NULL, 0, fmt, args) + 1;
+	const int length = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 
 	char *buf = malloc(length);
