@@ -3,9 +3,9 @@
 Displays keypresses on screen on supported Wayland compositors (requires
 `wlr_layer_shell_v1` support).
 
-![](https://sr.ht/xGs2.png)
+![image](https://sr.ht/xGs2.png)
 
-Forked from https://git.sr.ht/~sircmpwn/wshowkeys as Drew has moved onto other thigns.
+Forked from https://github.com/ammgws/wshowkeys
 
 ## Installation
 
@@ -18,11 +18,13 @@ Dependencies:
 - wayland 
 - xkbcommon 
 
-```
-$ meson build
-$ ninja -C build
-# ninja -C build install
-# chmod a+s /usr/bin/wshowkeys
+``` bash
+meson build
+ninja -C build
+
+# root permission is required when running below commands.
+ninja -C build install
+chmod a+s /usr/bin/wshowkeys
 ```
 
 wshowkeys must be configured as setuid during installation. It requires root
