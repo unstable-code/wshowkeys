@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build default configuration",
+            "type": "shell",
+            "command": "meson build && ninja -C build && echo -e '\\e[1;34mBuild Successful\\e[0;m\\n\\e[1;32mNOTE:\\e[0;mYou should run into the terminal with following below command, to install wshowkeys:\\n\\t`ninja -C build install && sudo chmod a+s /usr/local/bin/wshowkeys`'",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}
