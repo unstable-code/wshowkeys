@@ -31,7 +31,7 @@ struct wsk_keypress {
 
 struct wsk_output {
 	struct wl_output *output;
-	int scale;
+	int scale, width, heigh;
 	enum wl_output_subpixel subpixel;
 	struct wsk_output *next;
 };
@@ -81,6 +81,52 @@ static void cairo_set_source_u32(cairo_t *cairo, uint32_t color) {
 			(color >> (0*8) & 0xFF) / 255.0);
 }
 
+// 화면을 벗어나는 키들을 제거하는 함수
+static void trim_keys_by_width(struct wsk_state *state) {
+	if (!state->keys) return;
+
+    uint32_t max_width = 1800;  // 안전 마진 포함
+
+    // 🔥 간단: 현재 키들의 총 너비 계산
+    cairo_surface_t *temp_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
+    cairo_t *temp_cairo = cairo_create(temp_surface);
+
+    uint32_t total_width = 0;
+    struct wsk_keypress *key = state->keys;
+
+    // 전체 너비 계산
+    while (key) {
+        int w, h;
+        const char *name = key->utf8[0] ? key->utf8 : key->name;
+        get_text_size(temp_cairo, state->font, &w, &h, NULL, 1, "%s ", name);
+        total_width += w;
+        key = key->next;
+    }
+
+    printf("Total width: %d, max: %d\n", total_width, max_width);
+
+    // 🔥 초과하면 맨 앞 키들 제거
+    while (total_width > max_width && state->keys) {
+        struct wsk_keypress *to_remove = state->keys;
+
+        // 제거할 키의 너비 계산
+        int w, h;
+        const char *name = to_remove->utf8[0] ? to_remove->utf8 : to_remove->name;
+        get_text_size(temp_cairo, state->font, &w, &h, NULL, 1, "%s ", name);
+
+        // 키 제거
+        state->keys = state->keys->next;
+        free(to_remove);
+
+        total_width -= w;
+        printf("Removed key, new total width: %d\n", total_width);
+    }
+
+    cairo_destroy(temp_cairo);
+    cairo_surface_destroy(temp_surface);
+}
+
+
 static cairo_subpixel_order_t to_cairo_subpixel_order(
 		enum wl_output_subpixel subpixel) {
 	switch (subpixel) {
@@ -103,6 +149,15 @@ static void render_to_cairo(cairo_t *cairo, struct wsk_state *state,
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source_u32(cairo, state->background);
 	cairo_paint(cairo);
+
+	// 🔥 실제 화면 너비 사용
+    uint32_t max_width = 800;  // 기본값
+    if (state->output && state->output->width > 0) {
+        max_width = state->output->width - 100;  // 화면 너비 - 마진
+        fprintf(stdout, "Using screen width: %d\n", max_width);
+    } else {
+        fprintf(stdout, "Using default width: %d\n", max_width);
+	}
 
 	struct wsk_keypress *key = state->keys;
 	while (key) {
@@ -411,7 +466,11 @@ static void output_geometry(void *data, struct wl_output *wl_output,
 
 static void output_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
-	// Who cares
+	// 🔥 실제 화면 크기 저장
+	struct wsk_output *output = data;
+	output->width = width;
+	output->heigh = height;
+	fprintf(stdout, "Screen resolution: %dx%d\n", width, height);
 }
 
 static void output_done(void *data, struct wl_output *wl_output) {
@@ -452,13 +511,19 @@ static void registry_global(void *data, struct wl_registry *wl_registry,
 		struct wsk_output *output = calloc(1, sizeof(struct wsk_output));
 		output->output = wl_registry_bind(wl_registry,
 				name, &wl_output_interface, 3);
-		output->scale = 1;
+		output->scale = 1; output->heigh = 0; output->width = 0;
 		struct wsk_output **link = &state->outputs;
 		while (*link) {
 			link = &(*link)->next;
 		}
 		*link = output;
 		wl_output_add_listener(output->output, &wl_output_listener, output);
+
+		// 🔥 첫 번째 output을 기본으로 설정
+    	if (!state->output) {
+    	    state->output = output;
+    	    printf("Set primary output\n");
+    	}
 	}
 }
 
@@ -555,6 +620,8 @@ static void handle_libinput_event(struct wsk_state *state,
     	    }
     	    *link = keypress;
     	}
+
+		trim_keys_by_width(state);
     	break;
 	}
 
