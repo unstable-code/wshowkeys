@@ -3,8 +3,6 @@
 Displays keypresses on screen on supported Wayland compositors (requires
 `wlr_layer_shell_v1` support).
 
-![image](https://sr.ht/xGs2.png)
-
 Forked from https://github.com/ammgws/wshowkeys
 
 ## Installation
