@@ -538,7 +538,7 @@ static void handle_libinput_event(struct wsk_state *state,
 
     	    xkb_keysym_get_name(keypress->sym, keypress->name,
     	            sizeof(keypress->name));
-    	    strcpy(keypress->utf8, (char*)current_utf8);
+    	    snprintf(keypress->utf8, sizeof(keypress->utf8), "%s", (char*)current_utf8);
 
     	    // 링크드 리스트 끝에 추가
     	    struct wsk_keypress **link = &state->keys;
