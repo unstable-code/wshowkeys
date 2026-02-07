@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*.*.*'
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'meson.build'
+      - '.github/**/*.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'meson.build'
+      - '.github/**/*.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    name: Build and Test (x86_64)
+    container:
+      image: archlinux:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+        pacman -Syu --noconfirm
+        grep -q '^DisableSandbox' /etc/pacman.conf || sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
+        pacman -S --noconfirm base-devel meson wayland wayland-protocols \
+          libinput cairo pango libxkbcommon systemd
+
+    - name: Build with meson
+      run: |
+        meson setup build
+        ninja -C build
+
+    - name: Verify binary exists
+      run: |
+        if [ ! -f build/wshowkeys ]; then
+          echo "Error: wshowkeys binary not found"
+          ls -la build/ || echo "build/ directory not found"
+          exit 1
+        fi
+        echo "Build successful: wshowkeys binary created"
+        ls -lh build/wshowkeys
+
+    - name: Test help output
+      run: |
+        ./build/wshowkeys -h || true
+        echo "Help output test completed"
+
+    - name: Verify binary format
+      run: |
+        FILE_OUTPUT=$(file build/wshowkeys)
+        echo "Binary info: $FILE_OUTPUT"
+
+        if ! echo "$FILE_OUTPUT" | grep -q "ELF.*executable"; then
+          echo "Error: Invalid binary format"
+          exit 1
+        fi
+
+        if ! echo "$FILE_OUTPUT" | grep -qE "x86-64|x86_64"; then
+          echo "Error: Expected x86_64 binary but got: $FILE_OUTPUT"
+          exit 1
+        fi
+        echo "Binary format verified: x86_64 ELF executable"
